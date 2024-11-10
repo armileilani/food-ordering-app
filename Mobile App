@@ -1,0 +1,95 @@
+javascript
+// Web and Mobile UI
+const express = require('express');
+const app = express();
+
+// React for frontend
+const ReactDOM = require('react-dom');
+const React = require('react');
+
+// Database (Firebase)
+const firebase = require('firebase/app');
+require('firebase/firestore');
+const firebaseConfig = {
+  // Your Firebase config goes here
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// RESTful API
+const port = 3000;
+app.use(express.json());
+
+// User Authentication and Account Management
+app.post('/register', async (req, res) => {
+  // Create user in Firebase
+  const { email, password } = req.body;
+  const { user } = await firebase.auth().createUserWithEmailAndPassword(email, password);
+  // Save user data in Firestore
+  await db.collection('users').doc(user.uid).set({ email });
+  res.json({ success: true });
+});
+
+app.post('/login', async (req, res) => {
+  // Login user in Firebase
+  const { email, password } = req.body;
+  const { user } = await firebase.auth().signInWithEmailAndPassword(email, password);
+  // Get user data from Firestore
+  const userData = await db.collection('users').doc(user.uid).get();
+  res.json({ success: true, data: userData.data() });
+});
+
+// Menu Management
+app.get('/menu', async (req, res) => {
+  const menuItems = await db.collection('menu').get();
+  res.json(menuItems.docs.map(doc => doc.data()));
+});
+
+app.post('/menu', async (req, res) => {
+  const { name, description, price } = req.body;
+  await db.collection('menu').add({ name, description, price });
+  res.json({ success: true });
+});
+
+app.put('/menu/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, description, price } = req.body;
+  await db.collection('menu').doc(id).update({ name, description, price });
+  res.json({ success: true });
+});
+
+app.delete('/menu/:id', async (req, res) => {
+  const { id } = req.params;
+  await db.collection('menu').doc(id).delete();
+  res.json({ success: true });
+});
+
+// Order Management
+app.get('/orders', async (req, res) => {
+  const orders = await db.collection('orders').get();
+  res.json(orders.docs.map(doc => doc.data()));
+});
+
+app.post('/orders', async (req, res) => {
+  const { items, total, userId, address } = req.body;
+  const order = await db.collection('orders').add({ items, total, userId, address, status: 'placed' });
+  res.json({ success: true, id: order.id });
+});
+
+app.put('/orders/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  await db.collection('orders').doc(id).update({ status });
+  res.json({ success: true });
+});
+
+app.delete('/orders/:id', async (req, res) => {
+  const { id } = req.params;
+  await db.collection('orders').doc(id).delete();
+  res.json({ success: true });
+});
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
